@@ -1,0 +1,9 @@
+.metadata/
+Debug/*.map
+Debug/*.hex
+Debug/*.axf
+Release/*.map
+Release/*.hex
+Release/*.axf
+*.o
+*.d
