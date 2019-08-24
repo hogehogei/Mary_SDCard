@@ -4,14 +4,17 @@
 
 # Add inputs and outputs from these tool invocations to the build variables 
 CPP_SRCS += \
+../src/drv/petit_fs/PetitFs.cpp \
 ../src/drv/petit_fs/diskio.cpp \
 ../src/drv/petit_fs/pff.cpp 
 
 OBJS += \
+./src/drv/petit_fs/PetitFs.o \
 ./src/drv/petit_fs/diskio.o \
 ./src/drv/petit_fs/pff.o 
 
 CPP_DEPS += \
+./src/drv/petit_fs/PetitFs.d \
 ./src/drv/petit_fs/diskio.d \
 ./src/drv/petit_fs/pff.d 
 

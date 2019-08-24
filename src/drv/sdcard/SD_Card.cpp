@@ -18,7 +18,7 @@ static constexpr uint8_t sk_CMD55       = (0x40 + 55);
 static constexpr uint8_t sk_CMD58       = (0x40 + 58);
 static constexpr uint8_t sk_ACMD_Mask   = (0x80);                   //! ACMDマスク値 コマンドにANDして1の場合はACMD
 static constexpr uint32_t sk_ACMD41_HCS = (1UL << 30);
-static constexpr uint32_t sk_ACMD41_CCS = (1UL << 2);
+static constexpr uint32_t sk_ACMD58_CCS = (0x40);
 
 // SDCard Command Response
 static constexpr uint8_t sk_CMD_RES_InIdleState = (1 << 0);
@@ -48,12 +48,12 @@ static constexpr uint32_t k_MaxSector_ByteAccess = (std::numeric_limits<uint32_t
 
 // SDカードアクセス時間指定
 
-static constexpr uint8_t sk_SDC_InitDelay_ms    = 100;               //! SDC初期化ウェイト[ms]
+static constexpr uint8_t sk_SDC_InitDelay_ms    = 100;              //! SDC初期化ウェイト[ms]
 static constexpr uint8_t sk_SDC_InitSCLK        = 10;               //! SDC初期化カウント[x8 clock]
 static constexpr uint16_t sk_SDC_TimeOut_ms     = 1000;             //! SDCコマンドタイムアウト[ms]
 
-static constexpr uint16_t sk_CMD_RespRetry          = 512;          //! コマンドレスポンス読み出しリトライ回数
-static constexpr uint16_t sk_DataPktReadWait        = 512;          //! データパケットトークン読み出しリトライ回数
+static constexpr uint16_t sk_CMD_RespRetry          = 8192;         //! コマンドレスポンス読み出しリトライ回数
+static constexpr uint16_t sk_DataPktReadWait        = 8192;         //! データパケットトークン読み出しリトライ回数
 static constexpr uint16_t sk_WriteBusyCheckRetry    = 8192;         //! 書き込みビジーチェックリトライ回数
 
 void showResp( const uint8_t resp );
@@ -104,7 +104,6 @@ bool SD_Card::Initialize( I_SDC_Drv_SPI* driver )
     }
 
     // 初期化開始
-    //m_SDC_Drv->Select();
 
     uint8_t type = sk_SDC_Type_None;
     // CMD0 初期化コマンド送信
@@ -131,19 +130,25 @@ bool SD_Card::Initialize( I_SDC_Drv_SPI* driver )
         return false;
     }
 
+    m_CardType = type;
+
     return true;
 }
 
 bool SD_Card::Read( uint8_t* dst, uint32_t sector, uint32_t offset, uint32_t len )
 {
+	// SDカード状態が不正ならエラー
+	if( m_SDC_State == false ){
+		return false;
+	}
+
     if( len == 0 ){
         return true;
     }
     // 引数チェック
     // offset がセクタサイズ以上、もしくは
     // (offset + len) が32bitの取りえる値を超えていたら失敗
-    if( m_SDC_State == false ||
-        dst == nullptr || 
+    if( dst == nullptr ||
         offset >= sk_SectorSize || 
         ((std::numeric_limits<uint32_t>::max() - offset) < len) ){
         return false;
@@ -154,20 +159,26 @@ bool SD_Card::Read( uint8_t* dst, uint32_t sector, uint32_t offset, uint32_t len
         return false;
     }
 
-    bool result = true;
     // 進捗管理構造体
     Progress progress;
-    result = readInitiate( &progress, sector, offset, len );
-
-    m_SDC_Drv->Select();
+    bool result = readInitiate( &progress, sector, offset, len );
 
     // 3つの場合に分けて考える
     // step1: offset だけ先頭データを読み飛ばす
     // step2: 必要なデータをコピーする
     // step3: 必要なデータをすべて読み終わった後、最終セクタの余ったデータを読み飛ばす
     while( result &&
-         ( progress.remain_sector > 0 ) &&
-         ( progress.remain_bytes_cursec > 0 ) ){
+         (( progress.remain_len > 0 ) || ( progress.remain_bytes_cursec > 0 )) ){
+#if 0
+    	UART_Print( "Remain offset");
+    	UART_HexPrint( (uint8_t* )&progress.remain_offset, 4 );
+    	UART_Print( "Remain cursec");
+    	UART_HexPrint( (uint8_t*)&progress.remain_bytes_cursec, 4 );
+    	UART_Print( "Remain len");
+    	UART_HexPrint( (uint8_t*)&progress.remain_len, 4 );
+    	UART_Print( "Remain Sector");
+    	UART_HexPrint( (uint8_t*)&progress.remain_sector, 4 );
+#endif
 
         if( progress.remain_offset > 0 ){
             // step1
@@ -177,7 +188,7 @@ bool SD_Card::Read( uint8_t* dst, uint32_t sector, uint32_t offset, uint32_t len
         }
         else if( progress.remain_len > 0 ){
             // step2
-            uint8_t size = std::min( progress.remain_len, progress.remain_bytes_cursec );
+            uint32_t size = std::min( progress.remain_len, progress.remain_bytes_cursec );
             result = m_SDC_Drv->recv( dst, size );
             dst += size;
             progress.remain_len -= size;
@@ -254,17 +265,17 @@ bool SD_Card::WriteInitiate( uint32_t sector )
 
 bool SD_Card::Write( const uint8_t* data, uint32_t len )
 {
-    // 書き込み長が0なら何もせず成功で終了
-    if( len == 0 ){
-        return true;
-    }
-
     // SDカード状態が不正
     // 書き込むデータがnullptr、もしくは WriteInitiate() を呼んでいなければ失敗
     if( m_SDC_State == false ||
         data == nullptr ||
         m_IsWriteOpeProcessing == false ){
         return false;
+    }
+
+    // 書き込み長が0なら何もせず成功で終了
+    if( len == 0 ){
+        return true;
     }
 
     bool result = true;             // 戻り値
@@ -357,7 +368,7 @@ uint8_t SD_Card::initialize_SDv2()
             // OCR受信
             m_SDC_Drv->recv( buf, sizeof(buf) );
 
-            if( buf[0] & sk_ACMD41_CCS ){
+            if( (buf[0] & sk_ACMD58_CCS) == sk_ACMD58_CCS ){
                 type = sk_SDC_Type_SD2 | sk_SDC_Block;        // アクセスはブロック単位
             }
             else {
@@ -463,8 +474,6 @@ uint8_t SD_Card::sendCmd( uint8_t cmd, uint32_t arg )
         }
     }
 
-    showResp( res );
-
     return res;
 }
 
@@ -504,22 +513,24 @@ uint8_t SD_Card::sendCmdRetry( uint8_t cmd, uint32_t arg, uint16_t retry_cnt )
  **/
 bool SD_Card::readInitiate( Progress* progress, uint32_t sector, uint32_t offset, uint32_t len )
 {
+	if( len < 1 ){
+		return true;
+	}
+
     bool result = false;
 
     // 開始アドレスを算出
     uint32_t addr = m_CardType & sk_SDC_Block ? sector : sector * sk_SectorSize;
 
-    if( sendCmd( sk_CMD17, progress->addr ) == sk_CMD_RES_OK ){
+    if( sendCmd( sk_CMD17, addr ) == sk_CMD_RES_OK ){
         // データトークンを待つ
-        if( waitReadDataPacket() ){
-            result = true;
-        }
+        result = waitReadDataPacket();
     }
 
     if( result ){
         progress->addr = addr;
         // 総読み込みセクタを算出　1セクタより小さい値の場合でも、1セクタは読み込む
-        progress->remain_sector       = ((len + offset - 1) / sk_SectorSize);
+        progress->remain_sector       = (len + offset - 1) / sk_SectorSize;
         progress->remain_bytes_cursec = sk_SectorSize;
         progress->remain_offset       = offset;
         progress->remain_len          = len;
@@ -541,9 +552,7 @@ bool SD_Card::nextSectorReadPreparation( Progress* progress )
 
     if( sendCmd( sk_CMD17, progress->addr ) == sk_CMD_RES_OK ){
         // データトークンを待つ
-        if( waitReadDataPacket() ){
-            result = true;
-        }
+        result = waitReadDataPacket();
     }
 
     return result;
@@ -554,25 +563,22 @@ bool SD_Card::nextSectorReadPreparation( Progress* progress )
  **/
 bool SD_Card::waitReadDataPacket()
 {
-    bool result = false;
     uint8_t token = 0;
 
     //  データトークンを受信するまで待つ
     for( uint16_t i = 0; i < sk_DataPktReadWait; ++i ){
         m_SDC_Drv->recv( &token, 1 );
-        // CMD17 のデータトークンを受信したらOK
-        if( token == sk_DataToken_CMD17 ){
-            result = true;
-            break;
-        }
-        // エラートークンを受信したらNG
-        if( (token & sk_ErrorTokenMask) ){
-            result = false;
-            break;
+
+        if( token != 0xFF ){
+        	break;
         }
     }
+    // CMD17 のデータトークンを受信したらOK
+    if( token == sk_DataToken_CMD17 ){
+        return true;
+    }
 
-    return result;
+    return false;
 }
 
 /**

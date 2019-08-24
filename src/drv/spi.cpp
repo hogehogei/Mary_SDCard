@@ -124,7 +124,7 @@ uint32_t SPI::Recv_U16( uint16_t* dst, uint32_t dstlen )
 {
 	uint32_t i = 0;
 	for( i = 0; i < dstlen; ++i ){
-		dst[i] = TxRx(0x00);
+		dst[i] = TxRx(0xFFFF);
 	}
 
 	return i;
