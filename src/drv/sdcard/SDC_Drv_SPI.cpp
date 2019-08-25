@@ -2,6 +2,7 @@
 #include "LPC1100.h"
 #include "drv/sdcard/SDC_Drv_SPI.hpp"
 #include "drv/uart.h"
+#include "initialize.hpp"
 
 static constexpr uint32_t sk_SPI_Send_Timeout = 1000;
 static constexpr uint32_t sk_SPI_Recv_Timeout = 1000;
@@ -12,6 +13,16 @@ SDC_Drv_SPI::SDC_Drv_SPI()
 
 SDC_Drv_SPI::~SDC_Drv_SPI()
 {}
+
+void SDC_Drv_SPI::InitSlowSpeed()
+{
+	Init_SPI_Fast();
+}
+
+void SDC_Drv_SPI::InitFastSpeed()
+{
+	Init_SPI_Slow();
+}
 
 bool SDC_Drv_SPI::Select()
 {

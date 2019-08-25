@@ -59,8 +59,6 @@ void Initialize_Peripheral()
 	// Timer32B1 の初期化 パケット送信タイマーに用いる
 	Init_Timer32B1( 1000 );    // 1ms
 	UART_Print( "Init_Timer32B1()" );
-	// SPI の初期化
-	Init_SPI_Slow();
 }
 
 void Init_SPI_Slow()

@@ -89,6 +89,7 @@ bool SD_Card::Initialize( I_SDC_Drv_SPI* driver )
         return false;
     }
     m_SDC_Drv = driver;
+    m_SDC_Drv->InitSlowSpeed();
 
     // CSをHレベルに設定
     m_SDC_Drv->Release();
@@ -131,6 +132,7 @@ bool SD_Card::Initialize( I_SDC_Drv_SPI* driver )
     }
 
     m_CardType = type;
+    m_SDC_Drv->InitFastSpeed();
 
     return true;
 }

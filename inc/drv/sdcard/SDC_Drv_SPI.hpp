@@ -20,6 +20,16 @@ public:
     virtual ~SDC_Drv_SPI() noexcept;
 
     /**
+     * @brief   SDカードドライバ低速初期化
+     */
+    virtual void InitSlowSpeed() override;
+
+    /**
+     * @brief   SDカードドライバ高速初期化
+     */
+    virtual void InitFastSpeed() override;
+
+    /**
      * @brief   SDカードセレクト
      **/
     virtual bool Select() override;

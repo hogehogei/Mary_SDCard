@@ -26,7 +26,6 @@ public:
      **/
     ~SD_Card() noexcept;
 
-
     /**
      * @brief   SDカード初期化
      * @param [in]  driver      SDカードインターフェース

@@ -81,7 +81,6 @@ int main(void) {
 
 	petitfs::FileSys& fs = petitfs::FileSys::Instance();
 	PrintFsResult( fs.Mount() );
-	Init_SPI_Fast();
 
 	petitfs::Dir dir = fs.OpenDirectory( "/" );
 	PrintFsResult( dir.Status() );
