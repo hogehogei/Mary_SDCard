@@ -467,7 +467,7 @@ uint8_t SD_Card::sendCmd( uint8_t cmd, uint32_t arg )
     m_SDC_Drv->send( buf, sizeof(buf) );
 
     // コマンドレスポンスを待つ
-    for( uint8_t i = 0; i < sk_CMD_RespRetry; ++i ){
+    for( uint16_t i = 0; i < sk_CMD_RespRetry; ++i ){
         m_SDC_Drv->recv( &res, 1 );
 
         // コマンドレスポンスが帰ってくると、最上位ビットが0になる
