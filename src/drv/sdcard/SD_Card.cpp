@@ -100,7 +100,7 @@ bool SD_Card::Initialize( I_SDC_Drv_SPI* driver )
 
     for( int i = 0; i < sk_SDC_InitSCLK; ++i ){
         // SPI 初期化クロック送信
-        uint8_t t = 0;
+        uint8_t t = 0xFF;
         m_SDC_Drv->send( &t, 1 );
     }
 

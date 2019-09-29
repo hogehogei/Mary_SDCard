@@ -16,12 +16,12 @@ SDC_Drv_SPI::~SDC_Drv_SPI()
 
 void SDC_Drv_SPI::InitSlowSpeed()
 {
-	Init_SPI_Fast();
+	Init_SPI_Slow();
 }
 
 void SDC_Drv_SPI::InitFastSpeed()
 {
-	Init_SPI_Slow();
+	Init_SPI_Fast();
 }
 
 bool SDC_Drv_SPI::Select()
